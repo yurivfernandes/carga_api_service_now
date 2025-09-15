@@ -24,19 +24,27 @@ class ServiceNowETLOrchestrator:
         # Gerenciador de banco de dados para gravar DataFrames
         self.db_manager = DatabaseManager()
 
-    def _save_df(self, df, table_name: str, start_date: Optional[str] = None, end_date: Optional[str] = None) -> bool:
+    def _save_df(
+        self,
+        df,
+        table_name: str,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+    ) -> bool:
         """Wrapper para salvar um único DataFrame no DatabaseManager"""
         if df is None:
             return False
         try:
-            if hasattr(df, 'is_empty') and df.is_empty():
+            if hasattr(df, "is_empty") and df.is_empty():
                 return False
         except Exception:
             # Se não tiver método is_empty, assume que há dados
             pass
 
         data = {table_name: df}
-        return self.db_manager.save_dataframes_to_database(data, start_date, end_date)
+        return self.db_manager.save_dataframes_to_database(
+            data, start_date, end_date
+        )
 
     def sync_reference_data(self, force_full_sync: bool = False) -> bool:
         """
