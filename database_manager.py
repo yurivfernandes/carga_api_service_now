@@ -1,6 +1,10 @@
+
 from typing import Dict, Optional
 
 import polars as pl
+import pyodbc
+
+from config import Config
 
 
 class DatabaseManager:
@@ -18,33 +22,40 @@ class DatabaseManager:
         dataframes: Dict[str, pl.DataFrame]
     ) -> bool:
         """
-        Salva DataFrames no banco de dados com upsert (insert ou update) para sys_company e sys_user.
+        Salva DataFrames no banco de dados configurado via .env/config.py (SQL Server, etc).
         """
-        import sqlite3
+        import pyodbc
+
+        from config import Config
         success = True
-        db_path = "service_now.db"  # Nome do arquivo do banco SQLite
+        conn_str = Config.get_db_connection_string()
         try:
-            conn = sqlite3.connect(db_path)
+            conn = pyodbc.connect(conn_str)
             cursor = conn.cursor()
             for table_name, df in dataframes.items():
                 if df is None or df.is_empty():
                     continue
-                # Cria a tabela se não existir (schema simples, pode ser adaptado)
                 columns = df.columns
-                col_defs = ", ".join([f'{col} TEXT' for col in columns])
+                # Cria a tabela se não existir (schema simples, pode ser adaptado)
+                col_defs = ", ".join([f'[{col}] NVARCHAR(MAX)' for col in columns])
                 pk = "id" if "id" in columns else columns[0]
-                cursor.execute(f"CREATE TABLE IF NOT EXISTS {table_name} ({col_defs}, PRIMARY KEY ({pk}))")
+                cursor.execute(f"IF OBJECT_ID('{table_name}', 'U') IS NULL CREATE TABLE {table_name} ({col_defs}, PRIMARY KEY ([{pk}]))")
 
-                # Upsert (insert or update)
+                # Upsert (MERGE para SQL Server)
                 for row in df.iter_rows(named=True):
-                    placeholders = ", ".join(["?" for _ in columns])
-                    update_clause = ", ".join([f"{col}=excluded.{col}" for col in columns if col != pk])
-                    sql = (
-                        f"INSERT INTO {table_name} ({', '.join(columns)}) VALUES ({placeholders}) "
-                        f"ON CONFLICT({pk}) DO UPDATE SET {update_clause}"
-                    )
-                    values = [str(row[col]) if row[col] is not None else None for col in columns]
-                    cursor.execute(sql, values)
+                    values = [row[col] if row[col] is not None else None for col in columns]
+                    # Monta comando MERGE para upsert
+                    merge_sql = f"MERGE INTO {table_name} AS target USING (SELECT "
+                    merge_sql += ", ".join([f'? AS [{col}]' for col in columns])
+                    merge_sql += f") AS source ON target.[{pk}] = source.[{pk}] "
+                    merge_sql += "WHEN MATCHED THEN UPDATE SET "
+                    merge_sql += ", ".join([f"target.[{col}] = source.[{col}]" for col in columns if col != pk])
+                    merge_sql += " WHEN NOT MATCHED THEN INSERT ("
+                    merge_sql += ", ".join([f'[{col}]' for col in columns])
+                    merge_sql += ") VALUES ("
+                    merge_sql += ", ".join([f'source.[{col}]' for col in columns])
+                    merge_sql += ");"
+                    cursor.execute(merge_sql, values)
                 conn.commit()
             conn.close()
         except Exception as e:

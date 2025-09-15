@@ -14,6 +14,42 @@ from extractors.user_extractor import UserExtractor
 
 
 class ServiceNowETLOrchestrator:
+    def sync_reference_data(self, force_full_sync: bool = False) -> bool:
+        """
+        Sincroniza todos os usuários e empresas (full) ou apenas os referenciados nos incidentes mais recentes (incremental).
+        Args:
+            force_full_sync: Se True, sincroniza todos os usuários e empresas. Se False, sincroniza apenas os referenciados nos incidentes recentes.
+        """
+        print("🔄 SINCRONIZAÇÃO DE DADOS DE REFERÊNCIA")
+        print("=" * 50)
+        success = True
+        try:
+            if force_full_sync:
+                print("🏢 Sincronizando TODAS as empresas...")
+                df_companies = self.company_extractor.get_all_companies()
+                if df_companies is not None and not df_companies.is_empty():
+                    self._save_df(df_companies, "sys_company")
+                    print(f"✅ {len(df_companies)} empresas salvas no banco")
+                else:
+                    print("ℹ️ Nenhuma empresa encontrada")
+
+                print("👤 Sincronizando TODOS os usuários...")
+                df_users = self.user_extractor.get_all_users()
+                if df_users is not None and not df_users.is_empty():
+                    self._save_df(df_users, "sys_user")
+                    print(f"✅ {len(df_users)} usuários salvos no banco")
+                else:
+                    print("ℹ️ Nenhum usuário encontrado")
+            else:
+                # Busca incidentes recentes para sincronizar apenas referenciados
+                print("📋 Buscando incidentes recentes para sincronizar referências...")
+                df_incidents = self.incident_extractor.extract_data()
+                self.sync_reference_data_from_incidents(df_incidents)
+            print("\n✅ SINCRONIZAÇÃO DE REFERÊNCIA CONCLUÍDA!")
+        except Exception as e:
+            print(f"\n❌ ERRO na sincronização de referência: {e}")
+            success = False
+        return success
     """Orquestrador principal do ETL com dados normalizados"""
 
     def __init__(self):
@@ -214,29 +250,21 @@ class ServiceNowETLOrchestrator:
             self.sync_reference_data(force_full_sync=False)
 
             # 2. Extração de incidentes recentes
-            print(
-                f"\n📋 Extraindo incidentes de {start_date} até {end_date}..."
-            )
+            print(f"\n📋 Extraindo incidentes de {start_date} até {end_date}...")
             success = self.extract_incidents(start_date, end_date)
 
             if success:
                 print("\n⚡ SINCRONIZAÇÃO RÁPIDA CONCLUÍDA!")
-                self.execution_logger.finish_execution(
-                    execution_id, success=True
-                )
+                self.execution_logger.finish_execution(execution_id, success=True)
             else:
                 print("\n⚠️ PROBLEMAS na sincronização rápida!")
-                self.execution_logger.finish_execution(
-                    execution_id, success=False
-                )
+                self.execution_logger.finish_execution(execution_id, success=False)
 
             return success
 
         except Exception as e:
             print(f"\n❌ ERRO na sincronização rápida: {e}")
-            self.execution_logger.finish_execution(
-                execution_id, success=False, error=str(e)
-            )
+            self.execution_logger.finish_execution(execution_id, success=False, error=str(e))
             return False
 
     def sync_specific_companies(self, company_type: str = "customer") -> bool:
