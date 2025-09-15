@@ -28,7 +28,7 @@ class TimeWorkedExtractor(BaseServiceNowExtractor):
         
         return all_time_worked
     
-    def extract_data(self, incident_ids: List[str], start_date: Optional[str] = None, end_date: Optional[str] = None) -> pl.DataFrame:
+    def extract_data(self, incident_ids: List[str]) -> pl.DataFrame:
         """Extrai dados de tempo trabalhado para os incidentes especificados e retorna como DataFrame Polars"""
         print(f"📅 Processando tempo trabalhado para {len(incident_ids)} incidentes")
         

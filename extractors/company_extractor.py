@@ -31,7 +31,7 @@ class CompanyExtractor(BaseServiceNowExtractor):
             force_full_sync: Se True, força sincronização completa
         """
         print("🏢 Iniciando extração de empresas (core_company)")
-
+        force_full_sync = True
         if force_full_sync:
             print("🔄 Sincronização COMPLETA forçada")
             return self._extract_all_companies()

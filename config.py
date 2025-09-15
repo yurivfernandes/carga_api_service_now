@@ -58,4 +58,4 @@ def flatten_reference_fields(data: dict) -> dict:
         if isinstance(value, dict) and "value" in value:
             data[key] = value.get("value")
             data[f"dv_{key}"] = ""
-    return data    return data    return data
+    return data   

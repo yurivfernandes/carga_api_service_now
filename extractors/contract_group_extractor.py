@@ -10,7 +10,7 @@ from .base_extractor import BaseServiceNowExtractor
 class ContractSLAExtractor(BaseServiceNowExtractor):
     """Extrator específico para contratos SLA"""
     
-    def extract_data(self, start_date: Optional[str] = None, end_date: Optional[str] = None) -> pl.DataFrame:
+    def extract_data(self) -> pl.DataFrame:
         """Extrai dados de contratos SLA e retorna como DataFrame Polars"""
         print("📅 Processando contratos SLA")
         
@@ -30,7 +30,7 @@ class ContractSLAExtractor(BaseServiceNowExtractor):
 class GroupExtractor(BaseServiceNowExtractor):
     """Extrator específico para grupos de usuários"""
     
-    def extract_data(self, start_date: Optional[str] = None, end_date: Optional[str] = None) -> pl.DataFrame:
+    def extract_data(self) -> pl.DataFrame:
         """Extrai dados de grupos e retorna como DataFrame Polars"""
         print("📅 Processando grupos de usuários")
         

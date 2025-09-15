@@ -84,10 +84,7 @@ class ServiceNowETL:
         return success
 
     def extract_incident_data(
-        self,
-        start_date: Optional[str] = None,
-        end_date: Optional[str] = None,
-        include_backlog: bool = False,
+        self, start_date: Optional[str] = None, end_date: Optional[str] = None
     ):
         """Extrai dados de incidentes e dados relacionados"""
         print("📊 Iniciando extração de dados de incidentes...")
@@ -95,7 +92,7 @@ class ServiceNowETL:
 
         # 1. Extrai incidentes
         incidents_df = self.incident_extractor.extract_data(
-            start_date, end_date, include_backlog
+            start_date, end_date
         )
 
         if incidents_df.is_empty():
@@ -108,15 +105,9 @@ class ServiceNowETL:
         # 3. Extrai dados relacionados
         print("🔗 Extraindo dados relacionados aos incidentes...")
 
-        tasks_df = self.task_extractor.extract_data(
-            incident_ids, start_date, end_date
-        )
-        slas_df = self.sla_extractor.extract_data(
-            incident_ids, start_date, end_date
-        )
-        time_worked_df = self.time_worked_extractor.extract_data(
-            incident_ids, start_date, end_date
-        )
+        tasks_df = self.task_extractor.extract_data(incident_ids)
+        slas_df = self.sla_extractor.extract_data(incident_ids)
+        time_worked_df = self.time_worked_extractor.extract_data(incident_ids)
 
         extraction_time = time.time() - start_time
 
@@ -209,9 +200,7 @@ class ServiceNowETL:
                 return False
 
             # 2. Extrai dados de incidentes
-            if not self.extract_incident_data(
-                start_date, end_date, include_backlog
-            ):
+            if not self.extract_incident_data(start_date, end_date):
                 print("❌ Falha na extração de dados de incidentes")
                 return False
 
