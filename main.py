@@ -10,19 +10,18 @@ from typing import Optional
 from database_manager import DatabaseManager
 from etl_orchestrator import ServiceNowETLOrchestrator
 from execution_logger import ExecutionLogger, print_recent_executions
-from extractors import (
-    CompanyExtractor,
-    IncidentExtractor,
-    JSONDataManager,
-    SLAExtractor,
-    TaskExtractor,
-    TimeWorkedExtractor,
-    UserExtractor,
-)
 from extractors.contract_group_extractor import (
     ContractSLAExtractor,
     GroupExtractor,
 )
+from extractors.company_extractor import CompanyExtractor
+from extractors.incident_extractor import IncidentExtractor
+from json_data_manager import JSONDataManager
+from extractors.sla_extractor import SLAExtractor
+from extractors.task_extractor import TaskExtractor
+from extractors.time_worked_extractor import TimeWorkedExtractor
+from extractors.user_extractor import UserExtractor
+
 
 
 class ServiceNowETL:

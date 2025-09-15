@@ -1,8 +1,0 @@
-from company_extractor import CompanyExtractor
-from incident_extractor import IncidentExtractor
-from sla_extractor import SLAExtractor
-from task_extractor import TaskExtractor
-from time_worked_extractor import TimeWorkedExtractor
-from user_extractor import UserExtractor
-
-from json_data_manager import JSONDataManager
