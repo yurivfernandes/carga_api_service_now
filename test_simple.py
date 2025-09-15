@@ -2,8 +2,9 @@
 Teste simplificado da estrutura do projeto sem dependências externas
 """
 
-import sys
 import os
+import sys
+
 
 def test_imports():
     """Testa se os módulos principais podem ser importados"""
@@ -95,4 +96,4 @@ if __name__ == "__main__":
         print("3. Execute: python main.py")
     else:
         print("❌ Alguns testes falharam. Verifique a estrutura.")
-        sys.exit(1)
+        sys.exit(1)        sys.exit(1)        sys.exit(1)

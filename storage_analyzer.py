@@ -2,11 +2,13 @@
 Script para análise de espaço entre armazenamento normalizado vs JSON comprimido
 """
 
+from datetime import datetime
+from typing import Any, Dict
+
+import polars as pl
+
 from config import get_db_connection
 from json_data_manager import JSONDataManager
-import polars as pl
-from datetime import datetime
-from typing import Dict, Any
 
 
 class StorageAnalyzer:
@@ -294,4 +296,6 @@ def main():
 
 
 if __name__ == "__main__":
+    main()if __name__ == "__main__":
+    main()if __name__ == "__main__":
     main()

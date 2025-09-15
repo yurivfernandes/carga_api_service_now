@@ -2,12 +2,14 @@
 Gerenciador de dados JSON compactados para ServiceNow
 """
 
-import json
 import gzip
+import json
 import time
-from datetime import datetime, date
-from typing import Dict, Optional, Any
+from datetime import date, datetime
+from typing import Any, Dict, Optional
+
 import polars as pl
+
 from config import get_db_connection
 
 
@@ -287,4 +289,6 @@ class JSONDataManager:
             print(f"   ├── Tamanho médio comprimido: {avg_compressed_size:.2f} KB")
             print(f"   └── Razão média de compressão: {metrics['avg_compression_ratio']:.1f}%")
         else:
+            print("   └── Compressão: Desabilitada")        else:
+            print("   └── Compressão: Desabilitada")        else:
             print("   └── Compressão: Desabilitada")

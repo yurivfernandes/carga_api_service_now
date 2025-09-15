@@ -6,13 +6,15 @@ import datetime
 import sys
 import time
 from typing import Optional
+
 from database_manager import DatabaseManager
-from json_data_manager import JSONDataManager
+from extractors.contract_group_extractor import (ContractSLAExtractor,
+                                                 GroupExtractor)
 from extractors.incident_extractor import IncidentExtractor
-from extractors.task_extractor import TaskExtractor
 from extractors.sla_extractor import SLAExtractor
+from extractors.task_extractor import TaskExtractor
 from extractors.time_worked_extractor import TimeWorkedExtractor
-from extractors.contract_group_extractor import ContractSLAExtractor, GroupExtractor
+from json_data_manager import JSONDataManager
 
 
 class ServiceNowETL:
@@ -325,6 +327,10 @@ def main():
         # Execução padrão - ETL completo para os últimos 2 dias
         etl.run_full_etl()
 
+
+if __name__ == "__main__":
+    main()if __name__ == "__main__":
+    main()
 
 if __name__ == "__main__":
     main()

@@ -3,6 +3,7 @@ Script de exemplo para testar armazenamento JSON comprimido
 """
 
 import polars as pl
+
 from json_data_manager import JSONDataManager
 
 
@@ -258,4 +259,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main()    main()    main()
