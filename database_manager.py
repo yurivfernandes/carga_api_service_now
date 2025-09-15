@@ -15,9 +15,7 @@ class DatabaseManager:
 
     def save_dataframes_to_database(
         self,
-        dataframes: Dict[str, pl.DataFrame],
-        start_date: Optional[str] = None,
-        end_date: Optional[str] = None,
+        dataframes: Dict[str, pl.DataFrame]
     ) -> bool:
         """
         Salva DataFrames no banco de dados com upsert (insert ou update) para sys_company e sys_user.

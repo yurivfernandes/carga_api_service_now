@@ -10,8 +10,10 @@ from typing import Optional
 from database_manager import DatabaseManager
 from etl_orchestrator import ServiceNowETLOrchestrator
 from execution_logger import ExecutionLogger, print_recent_executions
-from extractors.contract_group_extractor import (ContractSLAExtractor,
-                                                 GroupExtractor)
+from extractors.contract_group_extractor import (
+    ContractSLAExtractor,
+    GroupExtractor,
+)
 from extractors.incident_extractor import IncidentExtractor
 from extractors.sla_extractor import SLAExtractor
 from extractors.task_extractor import TaskExtractor
@@ -37,8 +39,6 @@ class ServiceNowETL:
         self.time_worked_extractor = TimeWorkedExtractor()
         self.contract_extractor = ContractSLAExtractor()
         self.group_extractor = GroupExtractor()
-        self.company_extractor = CompanyExtractor()
-        self.user_extractor = UserExtractor()
 
     def extract_configuration_data(self):
         """Extrai dados de configuração (contratos SLA e grupos)"""
@@ -104,31 +104,31 @@ class ServiceNowETL:
 
         # 3. Extrai dados relacionados
         print("🔗 Extraindo dados relacionados aos incidentes...")
-        
-        tasks_df = self.task_extractor.extract_data(incident_ids)
-        slas_df = self.sla_extractor.extract_data(incident_ids)
-        time_worked_df = self.time_worked_extractor.extract_data(incident_ids)
+
+        # tasks_df = self.task_extractor.extract_data(incident_ids)
+        # slas_df = self.sla_extractor.extract_data(incident_ids)
+        # time_worked_df = self.time_worked_extractor.extract_data(incident_ids)
 
         extraction_time = time.time() - start_time
 
         # Imprime métricas da API
         self.incident_extractor.print_api_metrics("Incidentes")
-        self.task_extractor.print_api_metrics("Tarefas")
-        self.sla_extractor.print_api_metrics("SLAs")
-        self.time_worked_extractor.print_api_metrics("Tempo Trabalhado")
+        # self.task_extractor.print_api_metrics("Tarefas")
+        # self.sla_extractor.print_api_metrics("SLAs")
+        # self.time_worked_extractor.print_api_metrics("Tempo Trabalhado")
 
         # 4. Prepara DataFrames para salvamento
         incident_dataframes = {
             "incident": incidents_df,
-            "incident_task": tasks_df,
-            "incident_sla": slas_df,
-            "task_time_worked": time_worked_df,
+            # "incident_task": tasks_df,
+            # "incident_sla": slas_df,
+            # "task_time_worked": time_worked_df,
         }
 
         # 5. Salva no banco
         db_start_time = time.time()
         success = self.db_manager.save_dataframes_to_database(
-            incident_dataframes, start_date, end_date
+            incident_dataframes
         )
 
         # 6. Salva em JSON comprimido se habilitado
@@ -136,11 +136,11 @@ class ServiceNowETL:
             extraction_metrics = {
                 "total_requests": (
                     self.incident_extractor.get_api_metrics()["total_requests"]
-                    + self.task_extractor.get_api_metrics()["total_requests"]
-                    + self.sla_extractor.get_api_metrics()["total_requests"]
-                    + self.time_worked_extractor.get_api_metrics()[
-                        "total_requests"
-                    ]
+                    # + self.task_extractor.get_api_metrics()["total_requests"]
+                    # + self.sla_extractor.get_api_metrics()["total_requests"]
+                    # + self.time_worked_extractor.get_api_metrics()[
+                    #     "total_requests"
+                    # ]
                 )
             }
 
@@ -160,11 +160,11 @@ class ServiceNowETL:
         # Atualiza logger se disponível
         if self.logger:
             self.logger.add_processed_table("incident", len(incidents_df))
-            self.logger.add_processed_table("incident_task", len(tasks_df))
-            self.logger.add_processed_table("incident_sla", len(slas_df))
-            self.logger.add_processed_table(
-                "task_time_worked", len(time_worked_df)
-            )
+            # self.logger.add_processed_table("incident_task", len(tasks_df))
+            # self.logger.add_processed_table("incident_sla", len(slas_df))
+            # self.logger.add_processed_table(
+            #     "task_time_worked", len(time_worked_df)
+            # )
 
         total_time = time.time() - start_time
         db_time = db_end_time - db_start_time
