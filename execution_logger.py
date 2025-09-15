@@ -2,12 +2,13 @@
 Gerenciador de logs de execução do ServiceNow ETL
 """
 
+import getpass
 import json
+import socket
 import uuid
 from datetime import datetime
-from typing import Dict, List, Optional, Any
-import socket
-import getpass
+from typing import Any, Dict, List, Optional
+
 from config import get_db_connection
 
 
@@ -358,4 +359,4 @@ def print_recent_executions(limit: int = 5):
         else:
             print(f"   └── Status: {exec_data['status']}")
         
-        print()
+        print()        print()        print()

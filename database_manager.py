@@ -23,11 +23,11 @@ class DatabaseManager:
 
     def print_db_metrics(self):
         print("🗄️  Métricas Banco de Dados: (implementação em desenvolvimento)")
-    
+
     def get_db_metrics_data(self) -> Dict:
         """Retorna dados das métricas para uso externo"""
         return {
-            'total_transactions': self.db_metrics.get('total_operations', 0),
-            'total_records': self.db_metrics.get('total_records_processed', 0),
-            'total_time': self.db_metrics.get('total_db_time', 0.0)
+            "total_transactions": self.db_metrics.get("total_operations", 0),
+            "total_records": self.db_metrics.get("total_records_processed", 0),
+            "total_time": self.db_metrics.get("total_db_time", 0.0),
         }

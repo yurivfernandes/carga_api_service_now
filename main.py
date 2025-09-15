@@ -8,8 +8,8 @@ import time
 from typing import Optional
 
 from database_manager import DatabaseManager
-from execution_logger import ExecutionLogger, print_recent_executions
 from etl_orchestrator import ServiceNowETLOrchestrator
+from execution_logger import ExecutionLogger, print_recent_executions
 from extractors.contract_group_extractor import (
     ContractSLAExtractor,
     GroupExtractor,
@@ -24,7 +24,11 @@ from json_data_manager import JSONDataManager
 class ServiceNowETL:
     """Classe principal para orquestrar o processo ETL do ServiceNow"""
 
-    def __init__(self, enable_json_storage: bool = False, logger: Optional['ExecutionLogger'] = None):
+    def __init__(
+        self,
+        enable_json_storage: bool = False,
+        logger: Optional["ExecutionLogger"] = None,
+    ):
         self.db_manager = DatabaseManager()
         self.json_manager = JSONDataManager() if enable_json_storage else None
         self.enable_json_storage = enable_json_storage
@@ -59,7 +63,7 @@ class ServiceNowETL:
             config_dataframes
         )
         db_end_time = time.time()
-        
+
         # Atualiza logger se disponível
         if self.logger:
             self.logger.add_processed_table("contract_sla", len(contract_df))
@@ -161,13 +165,15 @@ class ServiceNowETL:
                 print("✅ Dados também salvos em formato JSON comprimido")
 
         db_end_time = time.time()
-        
+
         # Atualiza logger se disponível
         if self.logger:
             self.logger.add_processed_table("incident", len(incidents_df))
             self.logger.add_processed_table("incident_task", len(tasks_df))
             self.logger.add_processed_table("incident_sla", len(slas_df))
-            self.logger.add_processed_table("task_time_worked", len(time_worked_df))
+            self.logger.add_processed_table(
+                "task_time_worked", len(time_worked_df)
+            )
 
         total_time = time.time() - start_time
         db_time = db_end_time - db_start_time
@@ -275,7 +281,7 @@ class ServiceNowETL:
         # Métricas JSON se habilitado
         if self.enable_json_storage:
             self.json_manager.print_json_metrics()
-        
+
         # Atualiza métricas no logger se disponível
         if self.logger:
             self.logger.update_api_metrics(all_extractors)
@@ -321,142 +327,177 @@ class ServiceNowETL:
 
 def main():
     """Função principal com interface melhorada"""
-    
+
     # Ajuda e validação de argumentos
     if len(sys.argv) < 2:
         print_usage()
         return
-    
+
     command = sys.argv[1].lower()
-    
+
     # Comandos especiais
-    if command in ['help', '--help', '-h']:
+    if command in ["help", "--help", "-h"]:
         print_usage()
         return
-    elif command == 'logs':
+    elif command == "logs":
         print_recent_executions()
         return
     elif command == "analyze":
         from storage_analyzer import StorageAnalyzer
+
         analyzer = StorageAnalyzer()
         analyzer.print_detailed_analysis()
         return
-    
+
     # Novos comandos do orquestrador normalizado
     elif command in ["sync-ref", "sync-references"]:
         orchestrator = ServiceNowETLOrchestrator()
         force_full = "--full" in sys.argv
-        execution_id = orchestrator.execution_logger.start_execution("sync_references")
-        
+        execution_id = orchestrator.execution_logger.start_execution(
+            "sync_references"
+        )
+
         try:
-            success = orchestrator.sync_reference_data(force_full_sync=force_full)
-            orchestrator.execution_logger.finish_execution(execution_id, success=success)
+            success = orchestrator.sync_reference_data(
+                force_full_sync=force_full
+            )
+            orchestrator.execution_logger.finish_execution(
+                execution_id, success=success
+            )
         except Exception as e:
-            orchestrator.execution_logger.finish_execution(execution_id, success=False, error=str(e))
-        
+            orchestrator.execution_logger.finish_execution(
+                execution_id, success=False, error=str(e)
+            )
+
         return
-    
+
     elif command in ["etl-new", "normalized-etl"]:
         if len(sys.argv) < 4:
-            print("❌ Erro: Para ETL normalizado, forneça data de INÍCIO e FIM")
-            print("   Uso: python main.py etl-new YYYY-MM-DD YYYY-MM-DD [--full-ref]")
+            print(
+                "❌ Erro: Para ETL normalizado, forneça data de INÍCIO e FIM"
+            )
+            print(
+                "   Uso: python main.py etl-new YYYY-MM-DD YYYY-MM-DD [--full-ref]"
+            )
             print("   Exemplo: python main.py etl-new 2025-09-01 2025-09-15")
             return
-        
+
         orchestrator = ServiceNowETLOrchestrator()
         start_date = sys.argv[2]
         end_date = sys.argv[3]
         force_full_ref = "--full-ref" in sys.argv
-        
-        if not validate_date_format(start_date) or not validate_date_format(end_date):
+
+        if not validate_date_format(start_date) or not validate_date_format(
+            end_date
+        ):
             print("❌ Erro: Formato de data inválido. Use YYYY-MM-DD")
             return
-        
+
         orchestrator.full_etl_workflow(start_date, end_date, force_full_ref)
         return
-    
+
     elif command in ["quick-sync", "quick"]:
         orchestrator = ServiceNowETLOrchestrator()
-        days_back = int(sys.argv[2]) if len(sys.argv) > 2 and sys.argv[2].isdigit() else 1
+        days_back = (
+            int(sys.argv[2])
+            if len(sys.argv) > 2 and sys.argv[2].isdigit()
+            else 1
+        )
         orchestrator.quick_incident_sync(days_back)
         return
-    
+
     elif command in ["sync-companies", "companies"]:
         orchestrator = ServiceNowETLOrchestrator()
         company_type = sys.argv[2] if len(sys.argv) > 2 else "customer"
         orchestrator.sync_specific_companies(company_type)
         return
-    
+
     # Verifica se deve habilitar armazenamento JSON (comandos antigos)
     enable_json = "--json" in sys.argv or "-j" in sys.argv
-    
+
     # Cria logger de execução
     logger = ExecutionLogger()
-    
+
     try:
         etl = ServiceNowETL(enable_json_storage=enable_json, logger=logger)
-        
+
         if enable_json:
             print("📄 Armazenamento JSON comprimido HABILITADO")
-        
+
         success = False
-        
+
         if command == "config":
-            logger.set_execution_params('config', json_enabled=enable_json)
+            logger.set_execution_params("config", json_enabled=enable_json)
             success = etl.extract_configuration_data()
-            
+
         elif command == "daily":
             days_back = 3
             if len(sys.argv) > 2 and sys.argv[2].isdigit():
                 days_back = int(sys.argv[2])
-            
-            logger.set_execution_params('daily', json_enabled=enable_json)
+
+            logger.set_execution_params("daily", json_enabled=enable_json)
             success = etl.run_daily_etl(days_back=days_back)
-            
+
         elif command == "backlog":
-            logger.set_execution_params('backlog', json_enabled=enable_json)
+            logger.set_execution_params("backlog", json_enabled=enable_json)
             success = etl.run_full_etl(include_backlog=True)
-            
+
         elif command in ["range", "period", "custom"]:
             if len(sys.argv) < 4:
-                print("❌ Erro: Para extração por período, forneça data de INÍCIO e FIM")
-                print("   Uso: python main.py range YYYY-MM-DD YYYY-MM-DD [--json]")
+                print(
+                    "❌ Erro: Para extração por período, forneça data de INÍCIO e FIM"
+                )
+                print(
+                    "   Uso: python main.py range YYYY-MM-DD YYYY-MM-DD [--json]"
+                )
                 print("   Exemplo: python main.py range 2025-09-01 2025-09-15")
                 return
-            
+
             start_date = sys.argv[2]
             end_date = sys.argv[3]
-            
+
             # Validação básica do formato de data
-            if not validate_date_format(start_date) or not validate_date_format(end_date):
+            if not validate_date_format(
+                start_date
+            ) or not validate_date_format(end_date):
                 print("❌ Erro: Formato de data inválido. Use YYYY-MM-DD")
                 print("   Exemplo: 2025-09-15")
                 return
-            
-            logger.set_execution_params('range', start_date, end_date, enable_json)
-            success = etl.run_full_etl(start_date=start_date, end_date=end_date)
-            
+
+            logger.set_execution_params(
+                "range", start_date, end_date, enable_json
+            )
+            success = etl.run_full_etl(
+                start_date=start_date, end_date=end_date
+            )
+
         elif command == "today":
-            today = datetime.date.today().strftime('%Y-%m-%d')
-            logger.set_execution_params('today', today, today, enable_json)
+            today = datetime.date.today().strftime("%Y-%m-%d")
+            logger.set_execution_params("today", today, today, enable_json)
             success = etl.run_full_etl(start_date=today, end_date=today)
-            
+
         elif command == "yesterday":
-            yesterday = (datetime.date.today() - datetime.timedelta(days=1)).strftime('%Y-%m-%d')
-            logger.set_execution_params('yesterday', yesterday, yesterday, enable_json)
-            success = etl.run_full_etl(start_date=yesterday, end_date=yesterday)
-            
+            yesterday = (
+                datetime.date.today() - datetime.timedelta(days=1)
+            ).strftime("%Y-%m-%d")
+            logger.set_execution_params(
+                "yesterday", yesterday, yesterday, enable_json
+            )
+            success = etl.run_full_etl(
+                start_date=yesterday, end_date=yesterday
+            )
+
         else:
             print(f"❌ Comando desconhecido: {command}")
             print_usage()
             return
-        
+
         # Finaliza log baseado no sucesso
         if success:
             logger.set_success()
         else:
             logger.set_error("Execução falhou")
-            
+
     except KeyboardInterrupt:
         logger.set_error("Execução cancelada pelo usuário")
         print("\n⚠️ Execução cancelada pelo usuário")
@@ -464,6 +505,7 @@ def main():
         logger.set_error(f"Erro inesperado: {str(e)}")
         print(f"❌ Erro inesperado: {e}")
         import traceback
+
         traceback.print_exc()
     finally:
         # Sempre finaliza o log
@@ -475,7 +517,7 @@ def main():
 def validate_date_format(date_string: str) -> bool:
     """Valida formato de data YYYY-MM-DD"""
     try:
-        datetime.datetime.strptime(date_string, '%Y-%m-%d')
+        datetime.datetime.strptime(date_string, "%Y-%m-%d")
         return True
     except ValueError:
         return False
@@ -487,7 +529,7 @@ def print_usage():
     print("=" * 60)
     print("\n📋 COMANDOS DISPONÍVEIS:")
     print()
-    
+
     # Novos comandos normalizados
     print("🆕 NOVA ARQUITETURA NORMALIZADA:")
     print("   python main.py sync-ref [--full]")
@@ -504,28 +546,30 @@ def print_usage():
     print("      └── Exemplo: python main.py quick-sync 3")
     print()
     print("   python main.py sync-companies [TIPO]")
-    print("      └── Sincroniza empresas por tipo (customer, vendor, manufacturer)")
+    print(
+        "      └── Sincroniza empresas por tipo (customer, vendor, manufacturer)"
+    )
     print("      └── Exemplo: python main.py sync-companies customer")
     print()
-    
+
     # Comandos principais originais
     print("🔧 CONFIGURAÇÃO (LEGADO):")
     print("   python main.py config [--json]")
     print("      └── Extrai apenas dados de configuração (contratos, grupos)")
     print()
-    
+
     print("📅 EXTRAÇÃO POR DATA (LEGADO):")
     print("   python main.py today [--json]")
     print("      └── Extrai dados de hoje")
     print()
-    print("   python main.py yesterday [--json]")  
+    print("   python main.py yesterday [--json]")
     print("      └── Extrai dados de ontem")
     print()
     print("   python main.py range INÍCIO FIM [--json]")
     print("      └── Extrai dados do período especificado")
     print("      └── Exemplo: python main.py range 2025-09-01 2025-09-15")
     print()
-    
+
     print("📊 EXTRAÇÃO AUTOMÁTICA (LEGADO):")
     print("   python main.py daily [DIAS] [--json]")
     print("      └── Extrai dados dos últimos N dias (padrão: 3)")
@@ -534,7 +578,7 @@ def print_usage():
     print("   python main.py backlog [--json]")
     print("      └── Extrai todos os dados incluindo incidentes abertos")
     print()
-    
+
     print("📊 ANÁLISE E LOGS:")
     print("   python main.py analyze")
     print("      └── Análise comparativa de uso de espaço")
@@ -542,10 +586,12 @@ def print_usage():
     print("   python main.py logs")
     print("      └── Mostra últimas execuções registradas")
     print()
-    
+
     print("🔧 OPÇÕES ADICIONAIS:")
     print("   --json, -j")
-    print("      └── Habilita armazenamento JSON comprimido paralelo (comandos legado)")
+    print(
+        "      └── Habilita armazenamento JSON comprimido paralelo (comandos legado)"
+    )
     print()
     print("   --full")
     print("      └── Força sincronização completa (comandos sync-ref)")
@@ -556,7 +602,7 @@ def print_usage():
     print("   help, --help, -h")
     print("      └── Mostra esta mensagem de ajuda")
     print()
-    
+
     print("📝 EXEMPLOS PRÁTICOS:")
     print()
     print("   🆕 NOVA ARQUITETURA RECOMENDADA:")
@@ -569,7 +615,7 @@ def print_usage():
     print("   # Sincronização rápida diária")
     print("   python main.py quick-sync")
     print()
-    
+
     print("   📊 COMANDOS LEGADO:")
     print("   # Extração simples de hoje")
     print("   python main.py today")
@@ -580,7 +626,7 @@ def print_usage():
     print("   # Ver execuções anteriores")
     print("   python main.py logs")
     print()
-    
+
     print("💡 FORMATO DE DATAS: YYYY-MM-DD (ex: 2025-09-15)")
     print()
     print("🔄 MIGRAÇÃO: Use os comandos 'etl-new' e 'sync-ref' para a nova")

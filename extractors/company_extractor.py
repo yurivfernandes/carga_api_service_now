@@ -8,8 +8,9 @@ from typing import List, Set
 
 import polars as pl
 
-from .base_extractor import BaseServiceNowExtractor
 from config import get_db_connection
+
+from .base_extractor import BaseServiceNowExtractor
 
 
 class CompanyExtractor(BaseServiceNowExtractor):
@@ -348,4 +349,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main()    main()    main()
