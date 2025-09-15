@@ -135,18 +135,3 @@ class IncidentExtractor(BaseServiceNowExtractor):
             processed_incidents.append(processed_incident)
 
         return processed_incidents
-
-    def enrich_incident_data(self, incidents: list) -> list:
-        """
-        MÉTODO DEPRECATED - Não usar mais!
-
-        Esta funcionalidade foi movida para views no banco de dados.
-        Use as views incident_enriched ou incident_with_names para consultas enriquecidas.
-        """
-        print("⚠️  AVISO: enrich_incident_data está DEPRECATED!")
-        print(
-            "ℹ️  Use as views 'incident_enriched' ou 'incident_with_names' no banco"
-        )
-
-        # Retorna apenas dados processados básicos
-        return self._process_incidents(incidents)

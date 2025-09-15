@@ -359,4 +359,4 @@ def print_recent_executions(limit: int = 5):
         else:
             print(f"   └── Status: {exec_data['status']}")
         
-        print()        print()        print()
+        print()
