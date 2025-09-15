@@ -10,15 +10,19 @@ from typing import Optional
 from database_manager import DatabaseManager
 from etl_orchestrator import ServiceNowETLOrchestrator
 from execution_logger import ExecutionLogger, print_recent_executions
+from extractors import (
+    CompanyExtractor,
+    IncidentExtractor,
+    JSONDataManager,
+    SLAExtractor,
+    TaskExtractor,
+    TimeWorkedExtractor,
+    UserExtractor,
+)
 from extractors.contract_group_extractor import (
     ContractSLAExtractor,
     GroupExtractor,
 )
-from extractors.incident_extractor import IncidentExtractor
-from extractors.sla_extractor import SLAExtractor
-from extractors.task_extractor import TaskExtractor
-from extractors.time_worked_extractor import TimeWorkedExtractor
-from json_data_manager import JSONDataManager
 
 
 class ServiceNowETL:
@@ -39,6 +43,8 @@ class ServiceNowETL:
         self.time_worked_extractor = TimeWorkedExtractor()
         self.contract_extractor = ContractSLAExtractor()
         self.group_extractor = GroupExtractor()
+        self.company_extractor = CompanyExtractor()
+        self.user_extractor = UserExtractor()
 
     def extract_configuration_data(self):
         """Extrai dados de configuração (contratos SLA e grupos)"""
@@ -105,6 +111,8 @@ class ServiceNowETL:
         # 3. Extrai dados relacionados
         print("🔗 Extraindo dados relacionados aos incidentes...")
 
+        user_df = self.user_extractor.extract_data()
+        company_df = self.company_extractor.extract_data()
         tasks_df = self.task_extractor.extract_data(incident_ids)
         slas_df = self.sla_extractor.extract_data(incident_ids)
         time_worked_df = self.time_worked_extractor.extract_data(incident_ids)
@@ -113,6 +121,8 @@ class ServiceNowETL:
 
         # Imprime métricas da API
         self.incident_extractor.print_api_metrics("Incidentes")
+        self.user_extractor.print_api_metrics("Tempo Trabalhado")
+        self.company_extractor.print_api_metrics("Tempo Trabalhado")
         self.task_extractor.print_api_metrics("Tarefas")
         self.sla_extractor.print_api_metrics("SLAs")
         self.time_worked_extractor.print_api_metrics("Tempo Trabalhado")
@@ -120,6 +130,8 @@ class ServiceNowETL:
         # 4. Prepara DataFrames para salvamento
         incident_dataframes = {
             "incident": incidents_df,
+            "company_task": company_df,
+            "user_task": user_df,
             "incident_task": tasks_df,
             "incident_sla": slas_df,
             "task_time_worked": time_worked_df,
@@ -136,6 +148,10 @@ class ServiceNowETL:
             extraction_metrics = {
                 "total_requests": (
                     self.incident_extractor.get_api_metrics()["total_requests"]
+                    + self.user_extractor.get_api_metrics()["total_requests"]
+                    + self.company_extractor.get_api_metrics()[
+                        "total_requests"
+                    ]
                     + self.task_extractor.get_api_metrics()["total_requests"]
                     + self.sla_extractor.get_api_metrics()["total_requests"]
                     + self.time_worked_extractor.get_api_metrics()[
@@ -160,6 +176,8 @@ class ServiceNowETL:
         # Atualiza logger se disponível
         if self.logger:
             self.logger.add_processed_table("incident", len(incidents_df))
+            self.logger.add_processed_table("incident_task", len(user_df))
+            self.logger.add_processed_table("incident_task", len(company_df))
             self.logger.add_processed_table("incident_task", len(tasks_df))
             self.logger.add_processed_table("incident_sla", len(slas_df))
             self.logger.add_processed_table(
@@ -185,7 +203,6 @@ class ServiceNowETL:
         self,
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
-        include_backlog: bool = False,
     ):
         """Executa o processo completo de ETL"""
         print("🚀 Iniciando processo completo de ETL do ServiceNow")
