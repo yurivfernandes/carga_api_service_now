@@ -46,71 +46,54 @@ class ServiceNowETLOrchestrator:
             data, start_date, end_date
         )
 
-    def sync_reference_data(self, force_full_sync: bool = False) -> bool:
+    def sync_reference_data_from_incidents(self, df_incidents) -> bool:
         """
-        Sincroniza dados de referência (usuários e empresas) de forma inteligente
-
+        Sincroniza apenas usuários e empresas referenciados nos incidentes fornecidos.
         Args:
-            force_full_sync: Se True, força sincronização completa de tudo
+            df_incidents: DataFrame de incidentes extraídos
         """
-        print("🔄 SINCRONIZAÇÃO DE DADOS DE REFERÊNCIA")
+        print("🔄 SINCRONIZAÇÃO DE DADOS DE REFERÊNCIA (baseada nos incidentes)")
         print("=" * 50)
-
         success = True
-
         try:
-            # 1. Sincroniza usuários
-            print("\n👥 Sincronizando usuários...")
-            df_users = self.user_extractor.extract_data(
-                force_full_sync=force_full_sync
-            )
+            # Extrai IDs únicos de companys e usuários dos incidentes
+            company_ids = set()
+            user_ids = set()
+            if df_incidents is not None and not df_incidents.is_empty():
+                if "company" in df_incidents.columns:
+                    company_ids = set(df_incidents["company"].dropna().unique())
+                for col in ["resolved_by", "opened_by", "updated_by"]:
+                    if col in df_incidents.columns:
+                        user_ids.update(df_incidents[col].dropna().unique())
 
-            if not df_users.is_empty():
-                self._save_df(df_users, "sys_user")
-                print(f"✅ {len(df_users)} usuários salvos no banco")
+            # Busca e salva apenas as empresas necessárias
+            print(f"\n🏢 Buscando {len(company_ids)} empresas referenciadas nos incidentes...")
+            if company_ids:
+                df_companies = self.company_extractor.get_companies_by_ids(list(company_ids))
+                if df_companies is not None and not df_companies.is_empty():
+                    self._save_df(df_companies, "sys_company")
+                    print(f"✅ {len(df_companies)} empresas salvas no banco")
+                else:
+                    print("ℹ️ Nenhuma empresa encontrada para os IDs informados")
             else:
-                print("ℹ️ Nenhum usuário para atualizar")
+                print("ℹ️ Nenhuma empresa referenciada nos incidentes")
 
-            # 2. Sincroniza usuários em falta (referenciados em incidentes)
-            print("\n🔍 Verificando usuários em falta...")
-            df_missing_users = self.user_extractor.sync_missing_users()
-
-            if not df_missing_users.is_empty():
-                self._save_df(df_missing_users, "sys_user")
-                print(
-                    f"✅ {len(df_missing_users)} usuários em falta sincronizados"
-                )
-
-            # 3. Sincroniza empresas
-            print("\n🏢 Sincronizando empresas...")
-            df_companies = self.company_extractor.extract_data(
-                force_full_sync=force_full_sync
-            )
-
-            if not df_companies.is_empty():
-                self._save_df(df_companies, "sys_company")
-                print(f"✅ {len(df_companies)} empresas salvas no banco")
+            # Busca e salva apenas os usuários necessários
+            print(f"\n� Buscando {len(user_ids)} usuários referenciados nos incidentes...")
+            if user_ids:
+                df_users = self.user_extractor.get_users_by_ids(list(user_ids))
+                if df_users is not None and not df_users.is_empty():
+                    self._save_df(df_users, "sys_user")
+                    print(f"✅ {len(df_users)} usuários salvos no banco")
+                else:
+                    print("ℹ️ Nenhum usuário encontrado para os IDs informados")
             else:
-                print("ℹ️ Nenhuma empresa para atualizar")
-
-            # 4. Sincroniza empresas em falta (referenciadas em incidentes)
-            print("\n🔍 Verificando empresas em falta...")
-            df_missing_companies = (
-                self.company_extractor.sync_missing_companies()
-            )
-
-            if not df_missing_companies.is_empty():
-                self._save_df(df_missing_companies, "sys_company")
-                print(
-                    f"✅ {len(df_missing_companies)} empresas em falta sincronizadas"
-                )
+                print("ℹ️ Nenhum usuário referenciado nos incidentes")
 
             print("\n✅ SINCRONIZAÇÃO DE REFERÊNCIA CONCLUÍDA COM SUCESSO!")
-
         except Exception as e:
             print(f"\n❌ ERRO na sincronização de referência: {e}")
             success = False
-
         return success
 
     def extract_incidents(
@@ -152,40 +135,38 @@ class ServiceNowETLOrchestrator:
         self,
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
-        force_full_reference_sync: bool = False,
     ) -> bool:
         """
-        Executa o fluxo ETL completo: referências + incidentes
+        Executa o fluxo ETL completo: incidentes + referências (apenas referenciados)
 
         Args:
             start_date: Data de início para incidentes (YYYY-MM-DD)
             end_date: Data de fim para incidentes (YYYY-MM-DD)
-            force_full_reference_sync: Se True, força sync completa das referências
         """
         print("🚀 INICIANDO FLUXO ETL COMPLETO")
         print("=" * 60)
 
-        # Inicia logging da execução
         execution_id = self.execution_logger.start_execution("full_etl")
 
         try:
-            # 1. Sincroniza dados de referência primeiro
-            print("\n📋 ETAPA 1: Dados de Referência")
-            ref_success = self.sync_reference_data(
-                force_full_sync=force_full_reference_sync
-            )
-
-            if not ref_success:
-                print(
-                    "⚠️ Aviso: Problemas na sincronização de referência, mas continuando..."
+            # 1. Extrai incidentes primeiro
+            print("\n📋 ETAPA 1: Extração de Incidentes")
+            df_incidents = self.incident_extractor.extract_data(start_date, end_date)
+            if df_incidents is not None and not df_incidents.is_empty():
+                self._save_df(df_incidents, "incident", start_date, end_date)
+                print(f"✅ {len(df_incidents)} incidentes salvos no banco")
+            else:
+                print("ℹ️ Nenhum incidente encontrado para o período")
+                self.execution_logger.finish_execution(
+                    execution_id, success=True
                 )
+                return True
 
-            # 2. Extrai incidentes
-            print("\n📋 ETAPA 2: Incidentes")
-            incident_success = self.extract_incidents(start_date, end_date)
+            # 2. Sincroniza apenas referências presentes nos incidentes
+            print("\n📋 ETAPA 2: Sincronização de Referências dos Incidentes")
+            ref_success = self.sync_reference_data_from_incidents(df_incidents)
 
-            # 3. Verifica resultado final
-            overall_success = ref_success and incident_success
+            overall_success = ref_success
 
             if overall_success:
                 print("\n🎉 FLUXO ETL CONCLUÍDO COM SUCESSO!")
@@ -306,8 +287,7 @@ def main():
     command = sys.argv[1]
 
     if command == "ref-sync":
-        force_full = "--full" in sys.argv
-        orchestrator.sync_reference_data(force_full_sync=force_full)
+        print("Este comando foi descontinuado. Use o full-etl para sincronizar apenas referências presentes nos incidentes extraídos.")
 
     elif command == "incidents":
         if len(sys.argv) < 4:
@@ -323,14 +303,13 @@ def main():
     elif command == "full-etl":
         if len(sys.argv) < 4:
             print(
-                "Uso: python etl_orchestrator.py full-etl YYYY-MM-DD YYYY-MM-DD [--full-ref]"
+                "Uso: python etl_orchestrator.py full-etl YYYY-MM-DD YYYY-MM-DD"
             )
             sys.exit(1)
 
         start_date = sys.argv[2]
         end_date = sys.argv[3]
-        force_full_ref = "--full-ref" in sys.argv
-        orchestrator.full_etl_workflow(start_date, end_date, force_full_ref)
+        orchestrator.full_etl_workflow(start_date, end_date)
 
     elif command == "quick-sync":
         days_back = int(sys.argv[2]) if len(sys.argv) > 2 else 1
