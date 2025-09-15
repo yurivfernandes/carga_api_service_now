@@ -4,7 +4,6 @@ Configurações e utilitários para o projeto ServiceNow API Extractor
 
 import os
 from dotenv import load_dotenv
-import pyodbc
 
 # Carrega variáveis do arquivo .env
 load_dotenv()
@@ -41,6 +40,14 @@ class Config:
 
 def get_db_connection():
     """Retorna uma conexão com o banco de dados"""
+    try:
+        import pyodbc
+    except Exception as e:
+        # Não falha no import do módulo para permitir testes sem dependência de DB
+        raise ImportError(
+            "pyodbc não está disponível no ambiente. Instale a dependência ou configure um ambiente com ODBC."
+        ) from e
+
     return pyodbc.connect(Config.get_db_connection_string())
 
 def flatten_reference_fields(data: dict) -> dict:

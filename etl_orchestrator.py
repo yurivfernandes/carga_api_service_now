@@ -6,7 +6,7 @@ import sys
 from datetime import datetime, timedelta
 from typing import Optional
 
-from config import save_to_database
+from database_manager import DatabaseManager
 from execution_logger import ExecutionLogger
 from extractors.company_extractor import CompanyExtractor
 from extractors.incident_extractor import IncidentExtractor
@@ -21,6 +21,22 @@ class ServiceNowETLOrchestrator:
         self.company_extractor = CompanyExtractor()
         self.incident_extractor = IncidentExtractor()
         self.execution_logger = ExecutionLogger()
+        # Gerenciador de banco de dados para gravar DataFrames
+        self.db_manager = DatabaseManager()
+
+    def _save_df(self, df, table_name: str, start_date: Optional[str] = None, end_date: Optional[str] = None) -> bool:
+        """Wrapper para salvar um único DataFrame no DatabaseManager"""
+        if df is None:
+            return False
+        try:
+            if hasattr(df, 'is_empty') and df.is_empty():
+                return False
+        except Exception:
+            # Se não tiver método is_empty, assume que há dados
+            pass
+
+        data = {table_name: df}
+        return self.db_manager.save_dataframes_to_database(data, start_date, end_date)
 
     def sync_reference_data(self, force_full_sync: bool = False) -> bool:
         """
@@ -42,7 +58,7 @@ class ServiceNowETLOrchestrator:
             )
 
             if not df_users.is_empty():
-                save_to_database(df_users, "sys_user")
+                self._save_df(df_users, "sys_user")
                 print(f"✅ {len(df_users)} usuários salvos no banco")
             else:
                 print("ℹ️ Nenhum usuário para atualizar")
@@ -52,7 +68,7 @@ class ServiceNowETLOrchestrator:
             df_missing_users = self.user_extractor.sync_missing_users()
 
             if not df_missing_users.is_empty():
-                save_to_database(df_missing_users, "sys_user")
+                self._save_df(df_missing_users, "sys_user")
                 print(
                     f"✅ {len(df_missing_users)} usuários em falta sincronizados"
                 )
@@ -64,7 +80,7 @@ class ServiceNowETLOrchestrator:
             )
 
             if not df_companies.is_empty():
-                save_to_database(df_companies, "sys_company")
+                self._save_df(df_companies, "sys_company")
                 print(f"✅ {len(df_companies)} empresas salvas no banco")
             else:
                 print("ℹ️ Nenhuma empresa para atualizar")
@@ -76,7 +92,7 @@ class ServiceNowETLOrchestrator:
             )
 
             if not df_missing_companies.is_empty():
-                save_to_database(df_missing_companies, "sys_company")
+                self._save_df(df_missing_companies, "sys_company")
                 print(
                     f"✅ {len(df_missing_companies)} empresas em falta sincronizadas"
                 )
@@ -111,7 +127,7 @@ class ServiceNowETLOrchestrator:
             )
 
             if not df_incidents.is_empty():
-                save_to_database(df_incidents, "incident")
+                self._save_df(df_incidents, "incident")
                 print(f"✅ {len(df_incidents)} incidentes salvos no banco")
             else:
                 print("ℹ️ Nenhum incidente encontrado para o período")
@@ -250,7 +266,7 @@ class ServiceNowETLOrchestrator:
             )
 
             if not df_companies.is_empty():
-                save_to_database(df_companies, "sys_company")
+                self._save_df(df_companies, "sys_company")
                 print(
                     f"✅ {len(df_companies)} empresas {company_type} sincronizadas"
                 )
