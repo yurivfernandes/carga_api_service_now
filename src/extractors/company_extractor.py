@@ -8,7 +8,7 @@ from typing import List, Set
 
 import polars as pl
 
-from config import get_db_connection
+from settings.config import get_db_connection
 
 from .base_extractor import BaseServiceNowExtractor
 
@@ -377,29 +377,3 @@ class CompanyExtractor(BaseServiceNowExtractor):
             return pl.DataFrame(processed_companies)
         else:
             return pl.DataFrame()
-
-
-def main():
-    """Função para testar o extractor"""
-    extractor = CompanyExtractor()
-
-    print("🧪 TESTANDO EXTRACTOR DE EMPRESAS")
-    print("=" * 50)
-
-    # Teste incremental
-    df_incremental = extractor.extract_data(force_full_sync=False)
-    print(f"📊 Empresas incrementais: {len(df_incremental)} registros")
-
-    # Teste de empresas em falta
-    df_missing = extractor.sync_missing_companies()
-    print(f"📊 Empresas em falta: {len(df_missing)} registros")
-
-    # Teste por tipo
-    df_customers = extractor.get_companies_by_type("customer")
-    print(f"📊 Empresas clientes: {len(df_customers)} registros")
-
-    print("✅ Teste concluído!")
-
-
-if __name__ == "__main__":
-    main()

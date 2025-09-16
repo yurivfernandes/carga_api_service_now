@@ -10,7 +10,7 @@ from typing import Any, Dict, Optional
 
 import polars as pl
 
-from config import get_db_connection
+from settings.config import get_db_connection
 
 
 class JSONDataManager:
@@ -121,7 +121,7 @@ class JSONDataManager:
         """Salva dados em formato JSON compactado no banco"""
 
         start_time = time.time()
-
+        print("SALVANDO OS DADOS DO JSON")
         try:
             # 1. Prepara dados para JSON
             prepared_data = self.prepare_servicenow_data(dataframes)
@@ -185,7 +185,6 @@ class JSONDataManager:
                         if extraction_metrics
                         else 0
                     )
-
                     cursor.execute(
                         insert_query,
                         data_extraction,

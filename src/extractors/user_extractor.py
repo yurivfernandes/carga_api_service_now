@@ -8,7 +8,7 @@ from typing import List, Optional, Set
 
 import polars as pl
 
-from config import get_db_connection
+from settings.config import get_db_connection
 
 from .base_extractor import BaseServiceNowExtractor
 
@@ -343,25 +343,3 @@ class UserExtractor(BaseServiceNowExtractor):
         else:
             print("✅ Todos os usuários referenciados já estão sincronizados")
             return pl.DataFrame()
-
-
-def main():
-    """Função para testar o extractor"""
-    extractor = UserExtractor()
-
-    print("🧪 TESTANDO EXTRACTOR DE USUÁRIOS")
-    print("=" * 50)
-
-    # Teste incremental
-    df_incremental = extractor.extract_data(force_full_sync=False)
-    print(f"📊 Usuários incrementais: {len(df_incremental)} registros")
-
-    # Teste de usuários em falta
-    df_missing = extractor.sync_missing_users()
-    print(f"📊 Usuários em falta: {len(df_missing)} registros")
-
-    print("✅ Teste concluído!")
-
-
-if __name__ == "__main__":
-    main()

@@ -7,9 +7,9 @@ import sys
 import time
 from typing import Optional
 
-from database_manager import DatabaseManager
-from etl_orchestrator import ServiceNowETLOrchestrator
-from execution_logger import ExecutionLogger, print_recent_executions
+from analyzer.storage_analyzer import StorageAnalyzer
+from data_base.database_manager import DatabaseManager
+from extractors.company_extractor import CompanyExtractor
 from extractors.contract_group_extractor import (
     ContractSLAExtractor,
     GroupExtractor,
@@ -18,7 +18,9 @@ from extractors.incident_extractor import IncidentExtractor
 from extractors.sla_extractor import SLAExtractor
 from extractors.task_extractor import TaskExtractor
 from extractors.time_worked_extractor import TimeWorkedExtractor
-from json_data_manager import JSONDataManager
+from extractors.user_extractor import UserExtractor
+from log.execution_logger import ExecutionLogger, print_recent_executions
+from teste_json.json_data_manager import JSONDataManager
 
 
 class ServiceNowETL:
@@ -26,12 +28,12 @@ class ServiceNowETL:
 
     def __init__(
         self,
-        enable_json_storage: bool = False,
+        enable_json_storage: bool = True,
         logger: Optional["ExecutionLogger"] = None,
     ):
         self.db_manager = DatabaseManager()
-        self.json_manager = JSONDataManager() if enable_json_storage else None
-        self.enable_json_storage = enable_json_storage
+        self.json_manager = JSONDataManager()
+        self.enable_json_storage = True
         self.logger = logger
         self.incident_extractor = IncidentExtractor()
         self.task_extractor = TaskExtractor()
@@ -39,29 +41,37 @@ class ServiceNowETL:
         self.time_worked_extractor = TimeWorkedExtractor()
         self.contract_extractor = ContractSLAExtractor()
         self.group_extractor = GroupExtractor()
+        self.company_extractor = CompanyExtractor()
+        self.user_extractor = UserExtractor()
 
     def extract_configuration_data(self):
         """Extrai dados de configuração (contratos SLA e grupos)"""
         print("🔧 Iniciando extração de dados de configuração...")
         start_time = time.time()
-
-        # Extrai contratos SLA
         contract_df = self.contract_extractor.extract_data()
-
-        # Extrai grupos
         groups_df = self.group_extractor.extract_data()
+        users_df = self.user_extractor.extract_data()
+        companys_df = self.company_extractor.extract_data()
 
         # Imprime métricas da API
         self.contract_extractor.print_api_metrics("Contratos SLA")
         self.group_extractor.print_api_metrics("Grupos")
+        self.user_extractor.print_api_metrics("Users")
+        self.company_extractor.print_api_metrics("Company")
 
         # Salva no banco
-        config_dataframes = {"contract_sla": contract_df, "groups": groups_df}
+        config_dataframes = {
+            "contract_sla": contract_df,
+            "groups": groups_df,
+            "users": users_df,
+            "companys": companys_df,
+        }
 
         db_start_time = time.time()
         success = self.db_manager.save_dataframes_to_database(
             config_dataframes
         )
+
         db_end_time = time.time()
 
         # Atualiza logger se disponível
@@ -99,30 +109,29 @@ class ServiceNowETL:
             print("⚠️  Nenhum incidente encontrado para o período especificado")
             return True
 
-        # 2. Obtém IDs dos incidentes para buscar dados relacionados
-        incident_ids = incidents_df.select("sys_id").to_series().to_list()
-
         # 3. Extrai dados relacionados
         print("🔗 Extraindo dados relacionados aos incidentes...")
 
-        # tasks_df = self.task_extractor.extract_data(incident_ids)
-        # slas_df = self.sla_extractor.extract_data(incident_ids)
-        # time_worked_df = self.time_worked_extractor.extract_data(incident_ids)
+        tasks_df = self.task_extractor.extract_data(start_date, end_date)
+        slas_df = self.sla_extractor.extract_data(start_date, end_date)
+        time_worked_df = self.time_worked_extractor.extract_data(
+            start_date, end_date
+        )
 
         extraction_time = time.time() - start_time
 
         # Imprime métricas da API
         self.incident_extractor.print_api_metrics("Incidentes")
-        # self.task_extractor.print_api_metrics("Tarefas")
-        # self.sla_extractor.print_api_metrics("SLAs")
-        # self.time_worked_extractor.print_api_metrics("Tempo Trabalhado")
+        self.task_extractor.print_api_metrics("Tarefas")
+        self.sla_extractor.print_api_metrics("SLAs")
+        self.time_worked_extractor.print_api_metrics("Tempo Trabalhado")
 
         # 4. Prepara DataFrames para salvamento
         incident_dataframes = {
             "incident": incidents_df,
-            # "incident_task": tasks_df,
-            # "incident_sla": slas_df,
-            # "task_time_worked": time_worked_df,
+            "incident_task": tasks_df,
+            "incident_sla": slas_df,
+            "task_time_worked": time_worked_df,
         }
 
         # 5. Salva no banco
@@ -130,17 +139,17 @@ class ServiceNowETL:
         success = self.db_manager.save_dataframes_to_database(
             incident_dataframes
         )
-
         # 6. Salva em JSON comprimido se habilitado
+
         if self.enable_json_storage and success:
             extraction_metrics = {
                 "total_requests": (
                     self.incident_extractor.get_api_metrics()["total_requests"]
-                    # + self.task_extractor.get_api_metrics()["total_requests"]
-                    # + self.sla_extractor.get_api_metrics()["total_requests"]
-                    # + self.time_worked_extractor.get_api_metrics()[
-                    #     "total_requests"
-                    # ]
+                    + self.task_extractor.get_api_metrics()["total_requests"]
+                    + self.sla_extractor.get_api_metrics()["total_requests"]
+                    + self.time_worked_extractor.get_api_metrics()[
+                        "total_requests"
+                    ]
                 )
             }
 
@@ -160,11 +169,11 @@ class ServiceNowETL:
         # Atualiza logger se disponível
         if self.logger:
             self.logger.add_processed_table("incident", len(incidents_df))
-            # self.logger.add_processed_table("incident_task", len(tasks_df))
-            # self.logger.add_processed_table("incident_sla", len(slas_df))
-            # self.logger.add_processed_table(
-            #     "task_time_worked", len(time_worked_df)
-            # )
+            self.logger.add_processed_table("incident_task", len(tasks_df))
+            self.logger.add_processed_table("incident_sla", len(slas_df))
+            self.logger.add_processed_table(
+                "task_time_worked", len(time_worked_df)
+            )
 
         total_time = time.time() - start_time
         db_time = db_end_time - db_start_time
@@ -331,73 +340,8 @@ def main():
         print_recent_executions()
         return
     elif command == "analyze":
-        from storage_analyzer import StorageAnalyzer
-
         analyzer = StorageAnalyzer()
         analyzer.print_detailed_analysis()
-        return
-
-    # Novos comandos do orquestrador normalizado
-    elif command in ["sync-ref", "sync-references"]:
-        orchestrator = ServiceNowETLOrchestrator()
-        force_full = "--full" in sys.argv
-        execution_id = orchestrator.execution_logger.start_execution(
-            "sync_references"
-        )
-
-        try:
-            success = orchestrator.sync_reference_data(
-                force_full_sync=force_full
-            )
-            orchestrator.execution_logger.finish_execution(
-                execution_id, success=success
-            )
-        except Exception as e:
-            orchestrator.execution_logger.finish_execution(
-                execution_id, success=False, error=str(e)
-            )
-
-        return
-
-    elif command in ["etl-new", "normalized-etl"]:
-        if len(sys.argv) < 4:
-            print(
-                "❌ Erro: Para ETL normalizado, forneça data de INÍCIO e FIM"
-            )
-            print(
-                "   Uso: python main.py etl-new YYYY-MM-DD YYYY-MM-DD [--full-ref]"
-            )
-            print("   Exemplo: python main.py etl-new 2025-09-01 2025-09-15")
-            return
-
-        orchestrator = ServiceNowETLOrchestrator()
-        start_date = sys.argv[2]
-        end_date = sys.argv[3]
-        force_full_ref = "--full-ref" in sys.argv
-
-        if not validate_date_format(start_date) or not validate_date_format(
-            end_date
-        ):
-            print("❌ Erro: Formato de data inválido. Use YYYY-MM-DD")
-            return
-
-        orchestrator.full_etl_workflow(start_date, end_date, force_full_ref)
-        return
-
-    elif command in ["quick-sync", "quick"]:
-        orchestrator = ServiceNowETLOrchestrator()
-        days_back = (
-            int(sys.argv[2])
-            if len(sys.argv) > 2 and sys.argv[2].isdigit()
-            else 1
-        )
-        orchestrator.quick_incident_sync(days_back)
-        return
-
-    elif command in ["sync-companies", "companies"]:
-        orchestrator = ServiceNowETLOrchestrator()
-        company_type = sys.argv[2] if len(sys.argv) > 2 else "customer"
-        orchestrator.sync_specific_companies(company_type)
         return
 
     # Verifica se deve habilitar armazenamento JSON (comandos antigos)

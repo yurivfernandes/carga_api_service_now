@@ -9,7 +9,7 @@ import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from config import get_db_connection
+from settings.config import get_db_connection
 
 
 class ExecutionLogger:
@@ -193,7 +193,7 @@ class ExecutionLogger:
                 tables_processed_str = ",".join(
                     self.execution_data["tables_processed"]
                 )
-                records_by_table_json = json.dumps(
+                records_by_table_json = teste_json.dumps(
                     self.execution_data["records_by_table"]
                 )
 

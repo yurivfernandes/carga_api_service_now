@@ -30,8 +30,10 @@ class IncidentExtractor(BaseServiceNowExtractor):
 
         # Processa dados básicos (sem enriquecimento)
         if incidents:
-            processed_incidents = self._process_incidents(incidents)
-            df = pl.DataFrame(processed_incidents)
+            df = pl.DataFrame(
+                data=self._process_incidents(incidents), schema=self._schema
+            )
+
         else:
             df = pl.DataFrame()
 
@@ -43,7 +45,7 @@ class IncidentExtractor(BaseServiceNowExtractor):
     ) -> list:
         """Busca incidentes fechados dentro do range de datas especificado"""
         query = (
-            f"closed_at>={start_date} 00:00:00^closed_at<={end_date} 23:59:59"
+            f"opened_at>={start_date} 00:00:00^opened_at<={end_date} 23:59:59"
         )
 
         params = {
@@ -59,66 +61,69 @@ class IncidentExtractor(BaseServiceNowExtractor):
         return all_incidents
 
     def _get_incident_fields(self) -> str:
-        """Define campos a serem extraídos da API de incidentes"""
-        fields = [
-            # Identificação
-            "sys_id",
-            "number",
-            # Status e Estado
-            "state",
-            "incident_state",
-            "active",
-            "resolved_at",
-            "closed_at",
-            # Prioridade e Impacto
-            "priority",
-            "urgency",
-            "impact",
-            "severity",
-            # Classificação
-            "category",
-            "subcategory",
-            "u_subcategory_detail",
-            # Atribuição - apenas IDs (não enriquecer)
-            "company",
-            "assignment_group",
-            "assigned_to",
-            "caller_id",
-            # Resolução - apenas IDs (não enriquecer)
-            "resolved_by",
-            "opened_by",
-            "closed_by",
-            # Descrição
-            "short_description",
-            "description",
-            "close_notes",
-            "resolution_notes",
-            # Localização
-            "location",
-            # Configuração
-            "cmdb_ci",
-            "business_service",
-            # SLA
-            "business_stc",
-            "calendar_stc",
-            "resolve_time",
-            # Reopen
-            "reopen_count",
-            "reopened_time",
-            # Relacionamento
-            "parent_incident",
-            "problem_id",
-            "change_request",
-            # Auditoria
-            "sys_created_on",
-            "sys_created_by",
-            "sys_updated_on",
-            "sys_updated_by",
-            "opened_at",
-            "time_worked",
-        ]
+        """Define campos a serem extraídos da API de incidentes com base no schema"""
+        return ",".join(self._schema.keys())
 
-        return ",".join(fields)
+    @property
+    def _schema(self) -> dict:
+        """Retorna o schema dos campos de incidente como dicionário com tipo pl.String"""
+        return {
+            # Identificação
+            "sys_id": pl.String,
+            "number": pl.String,
+            # Status e Estado
+            "state": pl.String,
+            "incident_state": pl.String,
+            "active": pl.String,
+            "resolved_at": pl.String,
+            "closed_at": pl.String,
+            # Prioridade e Impacto
+            "priority": pl.String,
+            "urgency": pl.String,
+            "impact": pl.String,
+            "severity": pl.String,
+            # Classificação
+            "category": pl.String,
+            "subcategory": pl.String,
+            "u_subcategory_detail": pl.String,
+            # Atribuição - apenas IDs (não enriquecer)
+            "company": pl.String,
+            "assignment_group": pl.String,
+            "assigned_to": pl.String,
+            "caller_id": pl.String,
+            # Resolução - apenas IDs (não enriquecer)
+            "resolved_by": pl.String,
+            "opened_by": pl.String,
+            "closed_by": pl.String,
+            # Descrição
+            "short_description": pl.String,
+            "description": pl.String,
+            "close_notes": pl.String,
+            "resolution_notes": pl.String,
+            # Localização
+            "location": pl.String,
+            # Configuração
+            "cmdb_ci": pl.String,
+            "business_service": pl.String,
+            # SLA
+            "business_stc": pl.String,
+            "calendar_stc": pl.String,
+            "resolve_time": pl.String,
+            # Reopen
+            "reopen_count": pl.String,
+            "reopened_time": pl.String,
+            # Relacionamento
+            "parent_incident": pl.String,
+            "problem_id": pl.String,
+            "change_request": pl.String,
+            # Auditoria
+            "sys_created_on": pl.String,
+            "sys_created_by": pl.String,
+            "sys_updated_on": pl.String,
+            "sys_updated_by": pl.String,
+            "opened_at": pl.String,
+            "time_worked": pl.String,
+        }
 
     def _process_incidents(self, incidents: list) -> list:
         """Processa dados básicos dos incidentes sem enriquecimento"""

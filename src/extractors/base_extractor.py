@@ -11,8 +11,8 @@ import polars as pl
 import requests
 
 # Importa configurações SSL (desabilita verificação SSL automaticamente)
-import ssl_config  # noqa: F401
-from config import Config, flatten_reference_fields
+import ssl_config.ssl_config as ssl_config  # noqa: F401
+from settings.config import Config, flatten_reference_fields
 
 
 class BaseServiceNowExtractor:

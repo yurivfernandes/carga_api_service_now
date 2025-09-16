@@ -7,8 +7,8 @@ from typing import Any, Dict
 
 import polars as pl
 
-from config import get_db_connection
-from json_data_manager import JSONDataManager
+from settings.config import get_db_connection
+from teste_json.json_data_manager import JSONDataManager
 
 
 class StorageAnalyzer:
